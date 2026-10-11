@@ -1,0 +1,48 @@
+
+name: Test FB Group Poster
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install --ignore-scripts
+
+      - name: Start application
+        run: |
+          node index.js > app.log 2>&1 &
+          echo $! > app.pid
+
+      - name: Test health endpoint
+        run: |
+          for i in $(seq 1 15); do
+            if curl --fail http://127.0.0.1:8000/; then
+              echo
+              echo "Health check passed!"
+              exit 0
+            fi
+            sleep 2
+          done
+          cat app.log
+          exit 1
+
+      - name: Stop application
+        if: always()
+        run: |
+          if [ -f app.pid ]; then
+            kill "$(cat app.pid)" || true
+          fi
